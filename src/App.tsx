@@ -6,7 +6,7 @@ import { Room } from './pages/Room';
 function App() {
   return (
     <AuthProvider>
-      <BrowserRouter>
+      <BrowserRouter basename="/mistbound_game/">
         <Routes>
           <Route path="/" element={<Lobby />} />
           <Route path="/room/:roomId" element={<Room />} />
