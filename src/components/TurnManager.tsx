@@ -168,7 +168,7 @@ export const TurnManager: React.FC<TurnManagerProps> = ({ gameState }) => {
     const isNewRound = nextIndex === 0;
     const newRoundCount = isNewRound ? gameState.roundCount + 1 : gameState.roundCount;
 
-    const updates: Partial<GameState> = {
+    const updates: any = {
       players: updatedPlayers,
       currentTurnIndex: nextIndex,
       turnDeadline: Date.now() + 120000,

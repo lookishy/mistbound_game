@@ -1,42 +1,180 @@
 class SoundManagerClass {
   private initialized: boolean = false;
-  private sounds: Record<string, HTMLAudioElement> = {};
-
-  // Sounds configured to the requested paths
-  private readonly config: Record<string, string> = {
-    supply: '/mistbound_game/audio/supply.mp3',
-    conquestSuccess: '/mistbound_game/audio/conquest_success.mp3',
-    conquestFail: '/mistbound_game/audio/conquest_fail.mp3',
-    eventAlert: '/mistbound_game/audio/event_alert.mp3',
-    victory: '/mistbound_game/audio/victory.mp3'
-  };
+  private audioCtx: AudioContext | null = null;
 
   public init() {
     if (this.initialized) return;
 
-    // We preload Audio objects on first user interaction to bypass autoplay restrictions
-    for (const [key, path] of Object.entries(this.config)) {
-      const audio = new Audio(path);
-      audio.preload = 'auto';
-      // Load it silently to initialize
-      audio.load();
-      this.sounds[key] = audio;
+    try {
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      if (AudioContextClass) {
+        this.audioCtx = new AudioContextClass();
+        this.initialized = true;
+      }
+    } catch (e) {
+      console.error('Web Audio API not supported', e);
     }
-
-    this.initialized = true;
   }
 
-  public play(key: keyof typeof this.config) {
+  // Synthesize short high-pitched chime (Supply Card)
+  private playSupply() {
+    if (!this.audioCtx) return;
+    const ctx = this.audioCtx;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(600, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(1200, ctx.currentTime + 0.1);
+
+    gain.gain.setValueAtTime(0, ctx.currentTime);
+    gain.gain.linearRampToValueAtTime(0.3, ctx.currentTime + 0.05);
+    gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.15);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.start();
+    osc.stop(ctx.currentTime + 0.15);
+  }
+
+  // Synthesize rising triumphant chime (Conquest Success)
+  private playConquestSuccess() {
+    if (!this.audioCtx) return;
+    const ctx = this.audioCtx;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(400, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(800, ctx.currentTime + 0.3);
+
+    gain.gain.setValueAtTime(0, ctx.currentTime);
+    gain.gain.linearRampToValueAtTime(0.4, ctx.currentTime + 0.1);
+    gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.4);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.start();
+    osc.stop(ctx.currentTime + 0.4);
+  }
+
+  // Synthesize low heavy thud (Conquest Fail)
+  private playConquestFail() {
+    if (!this.audioCtx) return;
+    const ctx = this.audioCtx;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(150, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(50, ctx.currentTime + 0.25);
+
+    gain.gain.setValueAtTime(0, ctx.currentTime);
+    gain.gain.linearRampToValueAtTime(0.5, ctx.currentTime + 0.05);
+    gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.3);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.start();
+    osc.stop(ctx.currentTime + 0.3);
+  }
+
+  // Synthesize oscillating siren (Event Alert)
+  private playEventAlert() {
+    if (!this.audioCtx) return;
+    const ctx = this.audioCtx;
+    const duration = 1.5;
+
+    const osc = ctx.createOscillator();
+    const lfo = ctx.createOscillator();
+    const lfoGain = ctx.createGain();
+    const masterGain = ctx.createGain();
+
+    // Main tone
+    osc.type = 'sawtooth';
+    osc.frequency.value = 250;
+
+    // LFO for the siren effect
+    lfo.type = 'sine';
+    lfo.frequency.value = 4; // 4Hz oscillation
+    lfoGain.gain.value = 50; // Sweep +-50Hz
+
+    lfo.connect(lfoGain);
+    lfoGain.connect(osc.frequency);
+
+    masterGain.gain.setValueAtTime(0, ctx.currentTime);
+    masterGain.gain.linearRampToValueAtTime(0.3, ctx.currentTime + 0.2);
+    masterGain.gain.linearRampToValueAtTime(0.3, ctx.currentTime + duration - 0.2);
+    masterGain.gain.linearRampToValueAtTime(0, ctx.currentTime + duration);
+
+    osc.connect(masterGain);
+    masterGain.connect(ctx.destination);
+
+    osc.start();
+    lfo.start();
+    osc.stop(ctx.currentTime + duration);
+    lfo.stop(ctx.currentTime + duration);
+  }
+
+  // Synthesize arpeggiated major chord (Victory)
+  private playVictory() {
+    if (!this.audioCtx) return;
+    const ctx = this.audioCtx;
+
+    const playNote = (freq: number, startTime: number, duration: number) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = 'square';
+      osc.frequency.value = freq;
+
+      gain.gain.setValueAtTime(0, startTime);
+      gain.gain.linearRampToValueAtTime(0.2, startTime + 0.05);
+      gain.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start(startTime);
+      osc.stop(startTime + duration);
+    };
+
+    const now = ctx.currentTime;
+    // C Major Arpeggio (C4, E4, G4, C5)
+    playNote(261.63, now, 1.0);
+    playNote(329.63, now + 0.15, 1.0);
+    playNote(392.00, now + 0.3, 1.0);
+    playNote(523.25, now + 0.45, 2.0);
+  }
+
+  public play(key: 'supply' | 'conquestSuccess' | 'conquestFail' | 'eventAlert' | 'victory') {
     if (!this.initialized) {
         this.init();
     }
 
-    const sound = this.sounds[key];
-    if (sound) {
-      sound.currentTime = 0; // reset to start
-      sound.play().catch(e => {
-          console.warn(`音频播放失败 (可能尚未交互或路径不存在): ${key}`, e);
-      });
+    if (this.audioCtx && this.audioCtx.state === 'suspended') {
+      this.audioCtx.resume();
+    }
+
+    switch (key) {
+      case 'supply':
+        this.playSupply();
+        break;
+      case 'conquestSuccess':
+        this.playConquestSuccess();
+        break;
+      case 'conquestFail':
+        this.playConquestFail();
+        break;
+      case 'eventAlert':
+        this.playEventAlert();
+        break;
+      case 'victory':
+        this.playVictory();
+        break;
     }
   }
 }
