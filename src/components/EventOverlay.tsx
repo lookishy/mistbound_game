@@ -3,6 +3,7 @@ import { type GameState, type NodeState } from '../types';
 import { doc, updateDoc, arrayUnion } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useAuth } from './AuthProvider';
+import { SoundManager } from '../lib/SoundManager';
 
 interface EventOverlayProps {
   gameState: GameState;
@@ -33,6 +34,7 @@ export const EventOverlay: React.FC<EventOverlayProps> = ({ gameState }) => {
       const t = setTimeout(() => {
         setCountdown(c => c - 1);
         if (countdown - 1 === 0) {
+          SoundManager.play('eventAlert');
           setShowEventUI(true);
 
           if (isHost) {

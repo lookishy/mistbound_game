@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { type GameState, type NodeState } from '../types';
 import { doc, updateDoc, arrayUnion } from 'firebase/firestore';
 import { db } from '../lib/firebase';
+import { SoundManager } from '../lib/SoundManager';
 
 interface BidModalProps {
   gameState: GameState;
@@ -83,6 +84,7 @@ export const BidModal: React.FC<BidModalProps> = ({ gameState, node, onClose, on
         })
       });
 
+      SoundManager.play('conquestSuccess');
       alert('占领成功！');
     } else {
       updatedPlayers = gameState.players.map(p => {
@@ -110,6 +112,7 @@ export const BidModal: React.FC<BidModalProps> = ({ gameState, node, onClose, on
         })
       });
 
+      SoundManager.play('conquestFail');
       alert('资金不足，攻势被击退！您的晶石已全额退回。');
     }
 

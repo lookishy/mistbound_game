@@ -3,6 +3,7 @@ import { type GameState } from '../types';
 import { useAuth } from './AuthProvider';
 import { doc, updateDoc, arrayUnion } from 'firebase/firestore';
 import { db } from '../lib/firebase';
+import { SoundManager } from '../lib/SoundManager';
 
 interface TurnManagerProps {
   gameState: GameState;
@@ -111,6 +112,7 @@ export const TurnManager: React.FC<TurnManagerProps> = ({ gameState }) => {
   };
 
   const generateSupply = () => {
+    SoundManager.play('supply');
     const N = Math.floor(Math.random() * 3) + 3;
 
     const genCard = () => {
@@ -135,8 +137,13 @@ export const TurnManager: React.FC<TurnManagerProps> = ({ gameState }) => {
   };
 
   const selectSupply = async (choice: 'A' | 'B') => {
+    // 阻止重复点击
     if (!supplyOptions) return;
+
+    SoundManager.play('supply');
     const card = supplyOptions[choice];
+    // 先清空本地选项，防止多次点击
+    setSupplyOptions(null);
 
     const updatedPlayers = gameState.players.map(p => {
       if (p.id === currentPlayer.id) {
@@ -153,8 +160,30 @@ export const TurnManager: React.FC<TurnManagerProps> = ({ gameState }) => {
     });
 
     const roomRef = doc(db, 'rooms', gameState.roomId);
-    await updateDoc(roomRef, {
+
+    // 我们必须手动调用 endTurn 的逻辑，并在一次 updateDoc 中合并所有的改变
+    // 防止出现并发写入导致的一致性问题
+
+    const nextIndex = (gameState.currentTurnIndex + 1) % gameState.players.length;
+    const isNewRound = nextIndex === 0;
+    const newRoundCount = isNewRound ? gameState.roundCount + 1 : gameState.roundCount;
+
+    const updates: Partial<GameState> = {
       players: updatedPlayers,
+      currentTurnIndex: nextIndex,
+      turnDeadline: Date.now() + 120000,
+      extendedTime: false,
+    };
+
+    if (isNewRound) {
+      updates.roundCount = newRoundCount;
+      if (newRoundCount % 4 === 1 && newRoundCount > 1) {
+         triggerRandomEvent(updates);
+      }
+    }
+
+    await updateDoc(roomRef, {
+      ...updates,
       logs: arrayUnion({
         id: Date.now().toString(),
         timestamp: Date.now(),
@@ -163,9 +192,6 @@ export const TurnManager: React.FC<TurnManagerProps> = ({ gameState }) => {
         type: 'supply'
       })
     });
-
-    setSupplyOptions(null);
-    endTurn();
   };
 
   return (

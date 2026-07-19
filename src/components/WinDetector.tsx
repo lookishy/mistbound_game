@@ -4,6 +4,7 @@ import { MAP_EDGES } from '../lib/mapData';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useNavigate } from 'react-router-dom';
+import { SoundManager } from '../lib/SoundManager';
 
 interface WinDetectorProps {
   gameState: GameState;
@@ -22,6 +23,10 @@ export const WinDetector: React.FC<WinDetectorProps> = ({ gameState }) => {
       } else {
         const winner = gameState.players.find(p => p.id === gameState.winnerId);
         if (winner) setWinnerName(winner.name);
+      }
+
+      if (!showWinModal) {
+         SoundManager.play('victory');
       }
       setShowWinModal(true);
       return;
